@@ -17,7 +17,11 @@ const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY || 'admin123';
 export default function App() {
   const { isLoggedIn, isLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>(() => {
-    // Check URL for admin parameter
+    // Check URL for admin path or parameter
+    const pathname = window.location.pathname;
+    if (pathname === '/admin') {
+      return 'admin';
+    }
     const params = new URLSearchParams(window.location.search);
     return params.get('admin') === 'true' ? 'admin' : 'home';
   });
@@ -30,8 +34,10 @@ export default function App() {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (currentPage === 'admin') {
-      url.searchParams.set('admin', 'true');
+      url.pathname = '/admin';
+      url.searchParams.delete('admin');
     } else {
+      url.pathname = '/';
       url.searchParams.delete('admin');
     }
     window.history.replaceState({}, '', url.toString());
