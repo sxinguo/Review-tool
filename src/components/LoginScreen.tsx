@@ -1,0 +1,227 @@
+import { useState } from 'react';
+import { Sparkles, User, KeyRound, ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../lib/supabase';
+
+interface LoginScreenProps {
+  onLoginSuccess?: () => void;
+}
+
+export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+  const { login, loginAsGuest, isLoading: authLoading } = useAuth();
+  const [username, setUsername] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showLoginForm, setShowLoginForm] = useState(false);
+
+  const supabaseConfigured = isSupabaseConfigured();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!username.trim()) {
+      setError('请输入账号名');
+      return;
+    }
+
+    if (!inviteCode.trim()) {
+      setError('请输入邀请码');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await login(username.trim(), inviteCode.trim());
+
+      if (result.success) {
+        onLoginSuccess?.();
+      } else {
+        setError(result.error || '登录失败，请重试');
+      }
+    } catch (err) {
+      setError('网络错误，请检查网络连接');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGuestLogin = () => {
+    loginAsGuest();
+    onLoginSuccess?.();
+  };
+
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+      {/* Header with gradient */}
+      <div className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-12 text-center">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <Sparkles className="w-8 h-8 text-white" />
+          <h1 className="text-2xl font-bold text-white">智能复盘工具</h1>
+        </div>
+        <p className="text-purple-100 text-sm">
+          记录成长，见证进步
+        </p>
+      </div>
+
+      {/* Login Form */}
+      <div className="flex-1 px-6 py-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-purple-100">
+          {showLoginForm ? (
+            <>
+              {/* Login Form Mode */}
+              <div className="flex items-center gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLoginForm(false);
+                    setError('');
+                  }}
+                  className="p-1 hover:bg-purple-100 rounded-lg transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5 text-purple-600" />
+                </button>
+                <h2 className="text-lg font-medium text-purple-900">账号登录</h2>
+              </div>
+
+              {!supabaseConfigured ? (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm px-4 py-3 rounded-lg">
+                  云端功能暂未配置，请联系管理员或使用游客模式体验
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Username Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-purple-900 mb-2">
+                      账号
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="请输入账号"
+                        className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-purple-50/30"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Invite Code Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-purple-900 mb-2">
+                      邀请码
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
+                      <input
+                        type="text"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        placeholder="请输入邀请码"
+                        className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-purple-50/30 uppercase"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      首次登录将自动注册账号
+                    </p>
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg">
+                      {error}
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 active:from-purple-700 active:to-pink-700 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>登录中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>登录 / 注册</span>
+                        <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Selection Mode - Always show this as initial view */}
+              <div className="space-y-4">
+                {/* Account Login Button */}
+                <button
+                  onClick={() => setShowLoginForm(true)}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 active:from-purple-700 active:to-pink-700 transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  <User className="w-5 h-5" />
+                  <span>账号登录</span>
+                </button>
+
+                {/* Guest Mode Link */}
+                <div className="text-center">
+                  <button
+                    onClick={handleGuestLogin}
+                    className="text-purple-500 hover:text-purple-600 text-sm font-medium transition-colors underline decoration-dotted underline-offset-4"
+                  >
+                    体验一下
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400 text-center mt-4">
+                游客数据仅保存在本地设备
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Features */}
+        <div className="mt-8 space-y-3">
+          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-purple-100">
+            <h3 className="text-sm font-medium text-purple-900 mb-2">功能特点</h3>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li className="flex items-center gap-2">
+                <span className="text-purple-500">✓</span>
+                每日事项记录与管理
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-purple-500">✓</span>
+                AI 智能复盘分析
+              </li>
+              <li className="flex items-center gap-2">
+                <span className={supabaseConfigured ? "text-purple-500" : "text-gray-400"}>✓</span>
+                云端同步{!supabaseConfigured && "（需配置）"}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
