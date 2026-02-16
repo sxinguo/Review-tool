@@ -6,14 +6,22 @@ import AddItemDialog from './components/AddItemDialog';
 import ReviewDialog from './components/ReviewDialog';
 import LoginScreen from '../components/LoginScreen';
 import MigrationDialog from '../components/MigrationDialog';
+import AdminPage from '../components/AdminPage';
 import { useAuth } from '../contexts/AuthContext';
 
-type Page = 'home' | 'profile';
+type Page = 'home' | 'profile' | 'admin';
 type ReviewType = 'week' | 'month' | null;
+
+// Admin key from environment or default
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY || 'admin123';
 
 export default function App() {
   const { isLoggedIn, isLoading, needsMigration } = useAuth();
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    // Check URL for admin parameter
+    const params = new URLSearchParams(window.location.search);
+    return params.get('admin') === 'true' ? 'admin' : 'home';
+  });
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showReviewMenu, setShowReviewMenu] = useState(false);
   const [reviewType, setReviewType] = useState<ReviewType>(null);
@@ -26,6 +34,17 @@ export default function App() {
       setShowMigrationDialog(true);
     }
   }, [needsMigration]);
+
+  // Update URL when page changes
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (currentPage === 'admin') {
+      url.searchParams.set('admin', 'true');
+    } else {
+      url.searchParams.delete('admin');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [currentPage]);
 
   // Show loading state
   if (isLoading) {
@@ -111,12 +130,18 @@ export default function App() {
       <main className="flex-1 overflow-hidden">
         {currentPage === 'home' ? (
           <WeekView onDateClick={handleDateClick} />
+        ) : currentPage === 'admin' ? (
+          <AdminPage
+            onBack={() => setCurrentPage('profile')}
+            adminKey={ADMIN_KEY}
+          />
         ) : (
-          <Profile />
+          <Profile onEnterAdmin={() => setCurrentPage('admin')} />
         )}
       </main>
 
-      {/* 底部导航栏 */}
+      {/* 底部导航栏 - 管理页面不显示 */}
+      {currentPage !== 'admin' && (
       <nav className="bg-white border-t border-purple-100 px-6 py-2 flex items-center justify-around shadow-lg">
         <button
           onClick={() => setCurrentPage('home')}
@@ -148,6 +173,7 @@ export default function App() {
           <span className="text-xs mt-1">我的</span>
         </button>
       </nav>
+      )}
 
       {/* 添加事项弹窗 */}
       <AddItemDialog

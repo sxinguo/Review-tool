@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, FileText, TrendingUp, LogOut, Cloud, CloudOff } from 'lucide-react';
+import { Calendar, FileText, TrendingUp, LogOut, Cloud, CloudOff, Settings } from 'lucide-react';
 import { differenceInDays, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataService, Stats } from '../../lib/data-service';
 import MigrationDialog from '../../components/MigrationDialog';
 
-export default function Profile() {
+interface ProfileProps {
+  onEnterAdmin?: () => void;
+}
+
+export default function Profile({ onEnterAdmin }: ProfileProps) {
   const { user, isGuest, logout, needsMigration } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalDays: 0,
@@ -14,6 +18,7 @@ export default function Profile() {
     firstRecordDate: null,
   });
   const [showMigrationDialog, setShowMigrationDialog] = useState(false);
+  const [adminClickCount, setAdminClickCount] = useState(0);
 
   const loadStats = useCallback(async () => {
     try {
@@ -43,6 +48,16 @@ export default function Profile() {
 
   const handleMigrate = () => {
     setShowMigrationDialog(true);
+  };
+
+  const handleAdminClick = () => {
+    const newCount = adminClickCount + 1;
+    setAdminClickCount(newCount);
+
+    if (newCount >= 5) {
+      setAdminClickCount(0);
+      onEnterAdmin?.();
+    }
   };
 
   return (
@@ -177,6 +192,16 @@ export default function Profile() {
             <li>• 坚持记录，让进步看得见</li>
             {isGuest && <li>• 登录后可同步数据到云端</li>}
           </ul>
+        </div>
+
+        {/* 版本号（隐藏的管理入口） */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleAdminClick}
+            className="text-xs text-gray-300 hover:text-gray-400 transition-colors"
+          >
+            v1.0.0
+          </button>
         </div>
       </div>
 

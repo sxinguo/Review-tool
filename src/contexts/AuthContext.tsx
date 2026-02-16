@@ -94,33 +94,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, inviteCode: string): Promise<{ success: boolean; error?: string }> => {
     // 检查 Supabase 是否配置
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       return { success: false, error: 'Supabase 未配置，请设置环境变量后重试' };
     }
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, inviteCode }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { success: false, error: data.error || '登录失败' };
+      // 验证用户名格式
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return { success: false, error: '账号名格式不正确（3-20位字母、数字或下划线）' };
       }
 
-      // 设置 Supabase 会话
-      if (data.session && supabase) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-        setSession(data.session);
-        setUser(data.session.user);
+      const email = `${username.toLowerCase()}@review.app`;
+
+      // 首先尝试登录（用户已存在的情况）
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: inviteCode,
+      });
+
+      if (!signInError && signInData.session) {
+        // 登录成功
+        setSession(signInData.session);
+        setUser(signInData.session.user);
         setIsGuest(false);
         localStorage.removeItem(GUEST_MODE_KEY);
 
@@ -132,6 +127,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setNeedsMigration(true);
           }
         }
+
+        return { success: true };
+      }
+
+      // 登录失败，尝试注册新用户
+      // 首先验证邀请码
+      const { data: inviteCodes, error: inviteCodeError } = await supabase
+        .from('invite_codes')
+        .select('*')
+        .eq('code', inviteCode.toUpperCase())
+        .eq('is_used', false);
+
+      if (inviteCodeError) {
+        console.error('Invite code query error:', inviteCodeError);
+        return { success: false, error: '验证邀请码时出错' };
+      }
+
+      if (!inviteCodes || inviteCodes.length === 0) {
+        return { success: false, error: '邀请码无效或已被使用' };
+      }
+
+      const inviteCodeData = inviteCodes[0];
+
+      // 创建新用户
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: inviteCode,
+        options: {
+          data: {
+            username,
+          },
+          emailRedirectTo: undefined,
+        },
+      });
+
+      if (signUpError) {
+        return { success: false, error: signUpError.message || '注册失败' };
+      }
+
+      if (!signUpData.user) {
+        return { success: false, error: '注册失败' };
+      }
+
+      // 用户资料由数据库触发器自动创建
+
+      // 标记邀请码已使用
+      await supabase
+        .from('invite_codes')
+        .update({
+          is_used: true,
+          used_by: signUpData.user.id,
+          used_at: new Date().toISOString(),
+        })
+        .eq('id', inviteCodeData.id);
+
+      // 设置会话
+      if (signUpData.session) {
+        setSession(signUpData.session);
+        setUser(signUpData.session.user);
+        setIsGuest(false);
+        localStorage.removeItem(GUEST_MODE_KEY);
       }
 
       return { success: true };

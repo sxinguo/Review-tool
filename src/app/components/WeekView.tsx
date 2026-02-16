@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronUp, ChevronDown, Calendar } from 'lucide-react';
+import { ChevronUp, ChevronDown, Calendar, Pencil } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import DatePickerDialog from './DatePickerDialog';
+import AddItemDialog from './AddItemDialog';
 import { dataService, ReviewItem } from '../../lib/data-service';
 
 interface WeekViewProps {
@@ -16,6 +17,7 @@ export default function WeekView({ onDateClick }: WeekViewProps) {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState<ReviewItem | null>(null);
 
   // Load items from DataService
   const loadItems = useCallback(async () => {
@@ -159,7 +161,8 @@ export default function WeekView({ onDateClick }: WeekViewProps) {
                       {dayItems.map((item, index) => (
                         <div
                           key={item.id}
-                          className={`${getItemColor(index)} rounded-lg p-3 flex items-start gap-3 active:opacity-80 transition-all shadow-sm`}
+                          className={`${getItemColor(index)} rounded-lg p-3 flex items-start gap-3 active:opacity-80 transition-all shadow-sm cursor-pointer group relative`}
+                          onClick={() => setEditingItem(item)}
                         >
                           <div className="flex-1">
                             <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
@@ -171,7 +174,7 @@ export default function WeekView({ onDateClick }: WeekViewProps) {
                               e.stopPropagation();
                               handleDeleteItem(item.id);
                             }}
-                            className="text-xs text-red-400 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded transition-colors"
+                            className="text-xs text-red-400 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded transition-colors shrink-0"
                           >
                             删除
                           </button>
@@ -192,6 +195,13 @@ export default function WeekView({ onDateClick }: WeekViewProps) {
         onClose={() => setShowDatePicker(false)}
         onSelectDate={handleDateSelect}
         currentDate={currentWeekStart}
+      />
+
+      {/* 编辑事项弹窗 */}
+      <AddItemDialog
+        isOpen={!!editingItem}
+        onClose={() => setEditingItem(null)}
+        editItem={editingItem}
       />
     </div>
   );

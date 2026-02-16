@@ -114,7 +114,7 @@ export default function ReviewDialog({ isOpen, onClose, type }: ReviewDialogProp
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl max-h-[85vh] flex flex-col shadow-2xl">
         {/* 头部 */}
         <div className="px-5 py-4 border-b border-gray-200">

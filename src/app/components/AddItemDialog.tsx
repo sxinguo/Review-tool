@@ -2,18 +2,21 @@ import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { dataService } from '../../lib/data-service';
+import { dataService, ReviewItem } from '../../lib/data-service';
 
 interface AddItemDialogProps {
   isOpen: boolean;
   onClose: () => void;
   initialDate?: string;
+  editItem?: ReviewItem | null; // 用于编辑模式
 }
 
-export default function AddItemDialog({ isOpen, onClose, initialDate }: AddItemDialogProps) {
+export default function AddItemDialog({ isOpen, onClose, initialDate, editItem }: AddItemDialogProps) {
   const [content, setContent] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => initialDate || format(new Date(), 'yyyy-MM-dd'));
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isEditMode = !!editItem;
 
   // Update selected date when initialDate changes
   useEffect(() => {
@@ -22,12 +25,18 @@ export default function AddItemDialog({ isOpen, onClose, initialDate }: AddItemD
     }
   }, [initialDate]);
 
-  // Reset content when dialog opens
+  // Handle edit mode or reset when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setContent('');
+      if (editItem) {
+        setContent(editItem.content);
+        setSelectedDate(editItem.date);
+      } else {
+        setContent('');
+        setSelectedDate(initialDate || format(new Date(), 'yyyy-MM-dd'));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, editItem, initialDate]);
 
   if (!isOpen) return null;
 
@@ -42,7 +51,11 @@ export default function AddItemDialog({ isOpen, onClose, initialDate }: AddItemD
     setIsSubmitting(true);
 
     try {
-      await dataService.addItem(content.trim(), selectedDate);
+      if (isEditMode && editItem) {
+        await dataService.updateItem(editItem.id, content.trim(), selectedDate);
+      } else {
+        await dataService.addItem(content.trim(), selectedDate);
+      }
 
       // Trigger update event
       window.dispatchEvent(new Event('storage-update'));
@@ -52,7 +65,7 @@ export default function AddItemDialog({ isOpen, onClose, initialDate }: AddItemD
       setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
       onClose();
     } catch (error) {
-      console.error('Error adding item:', error);
+      console.error('Error saving item:', error);
       alert('保存失败，请重试');
     } finally {
       setIsSubmitting(false);
@@ -64,7 +77,9 @@ export default function AddItemDialog({ isOpen, onClose, initialDate }: AddItemD
       <div className="bg-white w-full rounded-t-2xl max-h-[80vh] flex flex-col shadow-2xl">
         {/* 头部 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-          <h2 className="text-lg font-medium text-purple-900">添加事项</h2>
+          <h2 className="text-lg font-medium text-purple-900">
+            {isEditMode ? '编辑事项' : '添加事项'}
+          </h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-purple-100 rounded-full transition-colors"
