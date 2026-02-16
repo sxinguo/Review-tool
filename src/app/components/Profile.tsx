@@ -4,20 +4,18 @@ import { differenceInDays, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataService, Stats } from '../../lib/data-service';
-import MigrationDialog from '../../components/MigrationDialog';
 
 interface ProfileProps {
   onEnterAdmin?: () => void;
 }
 
 export default function Profile({ onEnterAdmin }: ProfileProps) {
-  const { user, isGuest, logout, needsMigration } = useAuth();
+  const { user, isGuest, logout } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalDays: 0,
     totalItems: 0,
     firstRecordDate: null,
   });
-  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
   const [adminClickCount, setAdminClickCount] = useState(0);
 
   const loadStats = useCallback(async () => {
@@ -41,13 +39,17 @@ export default function Profile({ onEnterAdmin }: ProfileProps) {
   }, [loadStats]);
 
   const handleLogout = async () => {
-    if (confirm('确定要退出登录吗？')) {
-      await logout();
+    if (isGuest) {
+      // 游客模式直接退出，清除所有本地数据
+      if (confirm('退出游客模式将清除所有本地数据，确定要退出吗？')) {
+        localStorage.clear();
+        await logout();
+      }
+    } else {
+      if (confirm('确定要退出登录吗？')) {
+        await logout();
+      }
     }
-  };
-
-  const handleMigrate = () => {
-    setShowMigrationDialog(true);
   };
 
   const handleAdminClick = () => {
@@ -156,31 +158,23 @@ export default function Profile({ onEnterAdmin }: ProfileProps) {
         <div className="mt-6 space-y-3">
           {isGuest && (
             <button
-              onClick={handleMigrate}
+              onClick={handleLogout}
               className="w-full bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 py-4 rounded-xl font-medium hover:from-purple-150 hover:to-pink-150 transition-all flex items-center justify-center gap-2 border border-purple-200"
             >
               <Cloud className="w-5 h-5" />
-              <span>登录同步数据到云端</span>
+              <span>登录账号</span>
             </button>
           )}
 
-          {!isGuest && needsMigration && (
+          {!isGuest && (
             <button
-              onClick={handleMigrate}
-              className="w-full bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 py-4 rounded-xl font-medium hover:from-amber-150 hover:to-orange-150 transition-all flex items-center justify-center gap-2 border border-amber-200"
+              onClick={handleLogout}
+              className="w-full bg-white text-gray-600 py-4 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2 border border-gray-200"
             >
-              <Cloud className="w-5 h-5" />
-              <span>迁移本地数据到云端</span>
+              <LogOut className="w-5 h-5" />
+              <span>退出登录</span>
             </button>
           )}
-
-          <button
-            onClick={handleLogout}
-            className="w-full bg-white text-gray-600 py-4 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2 border border-gray-200"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>{isGuest ? '退出游客模式' : '退出登录'}</span>
-          </button>
         </div>
 
         {/* 功能提示 */}
@@ -204,12 +198,6 @@ export default function Profile({ onEnterAdmin }: ProfileProps) {
           </button>
         </div>
       </div>
-
-      {/* 数据迁移弹窗 */}
-      <MigrationDialog
-        isOpen={showMigrationDialog}
-        onClose={() => setShowMigrationDialog(false)}
-      />
     </div>
   );
 }

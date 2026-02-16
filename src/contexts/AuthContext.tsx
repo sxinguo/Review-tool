@@ -11,22 +11,17 @@ interface AuthContextType {
   login: (username: string, inviteCode: string) => Promise<{ success: boolean; error?: string }>;
   loginAsGuest: () => void;
   logout: () => Promise<void>;
-  needsMigration: boolean;
-  setNeedsMigration: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const GUEST_MODE_KEY = 'review-guest-mode';
-const GUEST_DATA_KEY = 'review-items';
-const USER_DATA_KEY = 'review-user';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [needsMigration, setNeedsMigration] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -118,15 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(signInData.session.user);
         setIsGuest(false);
         localStorage.removeItem(GUEST_MODE_KEY);
-
-        // 检查是否有本地数据需要迁移
-        const localData = localStorage.getItem(GUEST_DATA_KEY);
-        if (localData) {
-          const items = JSON.parse(localData);
-          if (items.length > 0) {
-            setNeedsMigration(true);
-          }
-        }
 
         return { success: true };
       }
@@ -225,8 +211,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     loginAsGuest,
     logout,
-    needsMigration,
-    setNeedsMigration,
   };
 
   return (

@@ -5,7 +5,6 @@ import Profile from './components/Profile';
 import AddItemDialog from './components/AddItemDialog';
 import ReviewDialog from './components/ReviewDialog';
 import LoginScreen from '../components/LoginScreen';
-import MigrationDialog from '../components/MigrationDialog';
 import AdminPage from '../components/AdminPage';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,7 +15,7 @@ type ReviewType = 'week' | 'month' | null;
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY || 'admin123';
 
 export default function App() {
-  const { isLoggedIn, isLoading, needsMigration } = useAuth();
+  const { isLoggedIn, isLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     // Check URL for admin parameter
     const params = new URLSearchParams(window.location.search);
@@ -26,14 +25,6 @@ export default function App() {
   const [showReviewMenu, setShowReviewMenu] = useState(false);
   const [reviewType, setReviewType] = useState<ReviewType>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
-
-  // Show migration dialog when user logs in with local data
-  useEffect(() => {
-    if (needsMigration) {
-      setShowMigrationDialog(true);
-    }
-  }, [needsMigration]);
 
   // Update URL when page changes
   useEffect(() => {
@@ -187,12 +178,6 @@ export default function App() {
         isOpen={reviewType !== null}
         onClose={() => setReviewType(null)}
         type={reviewType || 'week'}
-      />
-
-      {/* 数据迁移弹窗 */}
-      <MigrationDialog
-        isOpen={showMigrationDialog}
-        onClose={() => setShowMigrationDialog(false)}
       />
     </div>
   );
