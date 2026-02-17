@@ -57,7 +57,7 @@ export default function App() {
 
   // Show login screen if not logged in
   if (!isLoggedIn) {
-    return <LoginScreen onLoginSuccess={() => setCurrentPage('home')} />;
+    return <LoginScreen onLoginSuccess={() => {}} />;
   }
 
   const handleDateClick = (date: string) => {
