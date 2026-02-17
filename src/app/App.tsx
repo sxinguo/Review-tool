@@ -43,6 +43,11 @@ export default function App() {
     window.history.replaceState({}, '', url.toString());
   }, [currentPage]);
 
+  // /admin path: show admin page directly (AdminPage has its own password protection)
+  if (currentPage === 'admin') {
+    return <AdminPage onBack={() => setCurrentPage('home')} adminKey={ADMIN_KEY} />;
+  }
+
   // Show loading state
   if (isLoading) {
     return (
