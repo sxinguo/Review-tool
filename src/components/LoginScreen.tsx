@@ -97,10 +97,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       >
         <div className="flex items-center justify-center gap-3 mb-4">
           <Sparkles className="w-8 h-8 text-white" />
-          <h1 className="text-2xl font-bold text-white">智能复盘工具</h1>
+          <h1 className="text-2xl font-bold text-white">南墨笔记</h1>
         </div>
         <p className="text-purple-100 text-sm">
-          记录成长，见证进步
+          知行合一，记录成长
         </p>
       </div>
 
