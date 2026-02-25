@@ -8,7 +8,7 @@ interface AuthContextType {
   isGuest: boolean;
   isLoading: boolean;
   isLoggedIn: boolean;
-  login: (username: string, inviteCode: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string, inviteCode?: string) => Promise<{ success: boolean; error?: string; needInviteCode?: boolean }>;
   loginAsGuest: () => void;
   logout: () => Promise<void>;
 }
@@ -87,7 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (username: string, inviteCode: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (
+    username: string,
+    password: string,
+    inviteCode?: string
+  ): Promise<{ success: boolean; error?: string; needInviteCode?: boolean }> => {
     // 检查 Supabase 是否配置
     if (!isSupabaseConfigured() || !supabase) {
       return { success: false, error: 'Supabase 未配置，请设置环境变量后重试' };
@@ -99,12 +103,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: '账号名格式不正确（3-20位字母、数字或下划线）' };
       }
 
+      // 验证密码长度
+      if (password.length < 6) {
+        return { success: false, error: '密码长度至少6位' };
+      }
+
       const email = `${username.toLowerCase()}@review.app`;
 
       // 首先尝试登录（用户已存在的情况）
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password: inviteCode,
+        password,
       });
 
       if (!signInError && signInData.session) {
@@ -117,8 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
 
-      // 登录失败，尝试注册新用户
-      // 首先验证邀请码
+      // 登录失败 - 用户不存在或密码错误
+      // 如果没有提供邀请码，提示需要邀请码（可能是新用户）
+      if (!inviteCode) {
+        return {
+          success: false,
+          error: '登录失败，如果是新用户请输入邀请码注册',
+          needInviteCode: true,
+        };
+      }
+
+      // 有邀请码，验证邀请码
       const { data: inviteCodes, error: inviteCodeError } = await supabase
         .from('invite_codes')
         .select('*')
@@ -139,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 创建新用户
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
-        password: inviteCode,
+        password,
         options: {
           data: {
             username,
@@ -155,8 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!signUpData.user) {
         return { success: false, error: '注册失败' };
       }
-
-      // 用户资料由数据库触发器自动创建
 
       // 标记邀请码已使用
       await supabase

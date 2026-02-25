@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, User, KeyRound, ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
+import { Sparkles, User, KeyRound, Lock, ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -10,10 +10,12 @@ interface LoginScreenProps {
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const { login, loginAsGuest, isLoading: authLoading } = useAuth();
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showLoginForm, setShowLoginForm] = useState(false);
+  const [showInviteCode, setShowInviteCode] = useState(false);
 
   const supabaseConfigured = isSupabaseConfigured();
 
@@ -26,7 +28,18 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       return;
     }
 
-    if (!inviteCode.trim()) {
+    if (!password.trim()) {
+      setError('请输入密码');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('密码长度至少6位');
+      return;
+    }
+
+    // 如果邀请码字段显示且为空，提示用户
+    if (showInviteCode && !inviteCode.trim()) {
       setError('请输入邀请码');
       return;
     }
@@ -34,12 +47,20 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      const result = await login(username.trim(), inviteCode.trim());
+      const result = await login(
+        username.trim(),
+        password.trim(),
+        inviteCode.trim() || undefined
+      );
 
       if (result.success) {
         onLoginSuccess?.();
       } else {
         setError(result.error || '登录失败，请重试');
+        // 如果需要邀请码，显示邀请码字段
+        if (result.needInviteCode) {
+          setShowInviteCode(true);
+        }
       }
     } catch (err) {
       setError('网络错误，请检查网络连接');
@@ -89,6 +110,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   onClick={() => {
                     setShowLoginForm(false);
                     setError('');
+                    setUsername('');
+                    setPassword('');
+                    setInviteCode('');
+                    setShowInviteCode(false);
                   }}
                   className="p-1 hover:bg-purple-100 rounded-lg transition-colors"
                 >
@@ -114,33 +139,53 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="请输入账号"
+                        placeholder="请输入账号（3-20位字母、数字或下划线）"
                         className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-purple-50/30"
                         disabled={isLoading}
                       />
                     </div>
                   </div>
 
-                  {/* Invite Code Input */}
+                  {/* Password Input */}
                   <div>
                     <label className="block text-sm font-medium text-purple-900 mb-2">
-                      邀请码
+                      密码
                     </label>
                     <div className="relative">
-                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
                       <input
-                        type="text"
-                        value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                        placeholder="请输入邀请码"
-                        className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-purple-50/30 uppercase"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="请输入密码（至少6位）"
+                        className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-purple-50/30"
                         disabled={isLoading}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      首次登录将自动注册账号
-                    </p>
                   </div>
+
+                  {/* Invite Code Input - 条件显示 */}
+                  {showInviteCode && (
+                    <div>
+                      <label className="block text-sm font-medium text-purple-900 mb-2">
+                        邀请码
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
+                        <input
+                          type="text"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                          placeholder="请输入邀请码"
+                          className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-purple-50/30 uppercase"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        首次注册需要邀请码
+                      </p>
+                    </div>
+                  )}
 
                   {/* Error Message */}
                   {error && (
@@ -162,11 +207,24 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       </>
                     ) : (
                       <>
-                        <span>登录 / 注册</span>
+                        <span>{showInviteCode ? '注册并登录' : '登录'}</span>
                         <ArrowRight className="w-5 h-5" />
                       </>
                     )}
                   </button>
+
+                  {/* Toggle Invite Code Link */}
+                  {!showInviteCode && (
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowInviteCode(true)}
+                        className="text-purple-500 hover:text-purple-600 text-sm font-medium transition-colors underline decoration-dotted underline-offset-4"
+                      >
+                        没有账号？使用邀请码注册
+                      </button>
+                    </div>
+                  )}
                 </form>
               )}
             </>

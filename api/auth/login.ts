@@ -11,15 +11,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
-function generateRandomCode(length: number): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < length; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,10 +25,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { username, inviteCode } = req.body;
+  const { username, password, inviteCode } = req.body;
 
-  if (!username || !inviteCode) {
-    return res.status(400).json({ error: '请输入账号名和邀请码' });
+  if (!username || !password) {
+    return res.status(400).json({ error: '请输入账号名和密码' });
   }
 
   // Validate username format (alphanumeric, 3-20 chars)
@@ -45,14 +36,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: '账号名格式不正确（3-20位字母、数字或下划线）' });
   }
 
+  // Validate password length
+  if (password.length < 6) {
+    return res.status(400).json({ error: '密码长度至少6位' });
+  }
+
   try {
-    // Check if user already exists
     const email = `${username.toLowerCase()}@review.app`;
 
-    // Try to sign in with invite code as password
+    // First, try to sign in with the provided password (existing user)
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
-      password: inviteCode,
+      password,
     });
 
     if (!signInError && signInData.session) {
@@ -64,7 +59,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // User doesn't exist or wrong password - check if it's a new user registration
+    // Login failed - check if user exists
+    // If signInError is "Invalid login credentials", user might exist with wrong password
+    // or user doesn't exist at all
+    const { data: usersData, error: listError } = await supabase.auth.admin.listUsers();
+
+    if (listError) {
+      console.error('Error listing users:', listError);
+      return res.status(500).json({ error: '服务器错误' });
+    }
+
+    const existingUser = usersData.users.find(u => u.email === email);
+
+    if (existingUser) {
+      // User exists but password is wrong
+      return res.status(400).json({ error: '密码错误' });
+    }
+
+    // User doesn't exist - need to register with invite code
+    if (!inviteCode) {
+      return res.status(400).json({ error: '该账号不存在，请输入邀请码进行注册' });
+    }
+
     // Verify invite code
     const { data: inviteCodeData, error: inviteCodeError } = await supabase
       .from('invite_codes')
@@ -77,10 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: '邀请码无效或已被使用' });
     }
 
-    // Create new user
+    // Create new user with the provided password
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
-      password: inviteCode,
+      password,
       options: {
         data: {
           username,

@@ -139,7 +139,21 @@ CREATE TRIGGER handle_review_items_updated_at
   EXECUTE FUNCTION public.handle_updated_at();
 
 -- ============================================
--- 7. 初始邀请码（可选，用于测试）
+-- 7. RPC 函数：检查用户是否存在
+-- ============================================
+CREATE OR REPLACE FUNCTION public.check_user_exists(user_email TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (SELECT 1 FROM auth.users WHERE email = user_email);
+END;
+$$;
+
+-- ============================================
+-- 8. 初始邀请码（可选，用于测试）
 -- ============================================
 -- 取消注释以下行来创建测试邀请码
 -- INSERT INTO public.invite_codes (code) VALUES ('TEST1234');

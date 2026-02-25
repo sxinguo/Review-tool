@@ -11,7 +11,9 @@ import {
   LayoutDashboard,
   ChevronRight,
   Plus,
-  Search
+  Search,
+  Download,
+  Filter
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -30,6 +32,7 @@ interface AdminPageProps {
 }
 
 type MenuItem = 'dashboard' | 'invites' | 'users' | 'settings';
+type FilterStatus = 'all' | 'used' | 'unused';
 
 // Generate random code
 function generateRandomCode(length: number): string {
@@ -52,6 +55,7 @@ export default function AdminPage({ onBack, adminKey }: AdminPageProps) {
   const [inputKey, setInputKey] = useState('');
   const [activeMenu, setActiveMenu] = useState<MenuItem>('invites');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
   // Verify admin key
   const handleAdminLogin = () => {
@@ -162,9 +166,48 @@ export default function AdminPage({ onBack, adminKey }: AdminPageProps) {
   };
 
   // Filter codes
-  const filteredCodes = codes.filter(code =>
-    code.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCodes = codes.filter(code => {
+    // 搜索筛选
+    const matchSearch = code.code.toLowerCase().includes(searchTerm.toLowerCase());
+    // 状态筛选
+    const matchStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'used' && code.is_used) ||
+      (filterStatus === 'unused' && !code.is_used);
+    return matchSearch && matchStatus;
+  });
+
+  // 导出 Excel
+  const handleExport = () => {
+    if (filteredCodes.length === 0) {
+      alert('没有可导出的数据');
+      return;
+    }
+
+    // 生成 CSV 内容
+    const headers = ['邀请码', '状态', '创建时间', '使用时间'];
+    const rows = filteredCodes.map(code => [
+      code.code,
+      code.is_used ? '已使用' : '未使用',
+      new Date(code.created_at).toLocaleString('zh-CN'),
+      code.used_at ? new Date(code.used_at).toLocaleString('zh-CN') : ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // 添加 BOM 以支持中文
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `邀请码_${filterStatus === 'all' ? '全部' : filterStatus === 'used' ? '已使用' : '未使用'}_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Stats
   const unusedCount = codes.filter(c => !c.is_used).length;
@@ -321,8 +364,8 @@ export default function AdminPage({ onBack, adminKey }: AdminPageProps) {
 
               {/* Actions Bar */}
               <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 relative">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex-1 min-w-[200px] relative">
                     <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
@@ -332,6 +375,52 @@ export default function AdminPage({ onBack, adminKey }: AdminPageProps) {
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+
+                  {/* 状态筛选 */}
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setFilterStatus('all')}
+                      className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                        filterStatus === 'all'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      全部
+                    </button>
+                    <button
+                      onClick={() => setFilterStatus('unused')}
+                      className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                        filterStatus === 'unused'
+                          ? 'bg-white text-green-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      未使用
+                    </button>
+                    <button
+                      onClick={() => setFilterStatus('used')}
+                      className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                        filterStatus === 'used'
+                          ? 'bg-white text-gray-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      已使用
+                    </button>
+                  </div>
+
+                  {/* 导出按钮 */}
+                  <button
+                    onClick={handleExport}
+                    disabled={filteredCodes.length === 0}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>导出</span>
+                    <span className="text-xs text-gray-400">({filteredCodes.length})</span>
+                  </button>
+
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
