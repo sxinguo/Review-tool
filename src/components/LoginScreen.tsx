@@ -86,9 +86,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+    <div
+      className="h-screen flex flex-col"
+      style={{ background: 'linear-gradient(to bottom right, #faf5ff, #fdf2f8, #eff6ff)' }}
+    >
       {/* Header with gradient */}
-      <div className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-12 text-center">
+      <div
+        className="px-6 py-12 text-center"
+        style={{ background: 'linear-gradient(to right, #a855f7, #ec4899)' }}
+      >
         <div className="flex items-center justify-center gap-3 mb-4">
           <Sparkles className="w-8 h-8 text-white" />
           <h1 className="text-2xl font-bold text-white">智能复盘工具</h1>
