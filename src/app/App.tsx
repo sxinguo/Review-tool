@@ -15,7 +15,7 @@ type ReviewType = 'week' | 'month' | null;
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY || 'admin123';
 
 export default function App() {
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isLoggedIn, isLoading, isGuest } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     // Check URL for admin path or parameter
     const pathname = window.location.pathname;
@@ -93,15 +93,27 @@ export default function App() {
           {currentPage === 'home' && (
             <div className="relative">
               <button
-                onClick={() => setShowReviewMenu(!showReviewMenu)}
-                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 active:bg-white/40 backdrop-blur-sm text-white px-3 py-2 rounded-full text-sm font-medium transition-all shadow-sm"
+                onClick={() => {
+                  if (isGuest) {
+                    alert('游客模式暂无法使用');
+                    return;
+                  }
+                  setShowReviewMenu(!showReviewMenu);
+                }}
+                className={`flex items-center gap-1.5 backdrop-blur-sm px-3 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
+                  isGuest
+                    ? 'bg-white/10 text-white/60'
+                    : 'bg-white/20 hover:bg-white/30 active:bg-white/40 text-white'
+                }`}
               >
                 <Sparkles className="w-4 h-4" />
                 <span>智能复盘</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showReviewMenu ? 'rotate-180' : ''}`} />
+                {!isGuest && (
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showReviewMenu ? 'rotate-180' : ''}`} />
+                )}
               </button>
 
-              {showReviewMenu && (
+              {showReviewMenu && !isGuest && (
                 <>
                   <div
                     className="fixed inset-0 z-10"
