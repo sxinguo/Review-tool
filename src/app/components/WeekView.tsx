@@ -127,18 +127,28 @@ export default function WeekView({ onDateClick }: WeekViewProps) {
     });
   };
 
-  // 获取某天的事项，并按分类排序
+  // 获取某天的事项，并按分类排序，同一分类内按创建时间排序
   const getItemsForDate = (date: Date) => {
     const dayItems = items.filter(item => {
       const itemDate = parseISO(item.date);
       return isSameDay(itemDate, date);
     });
 
-    // 按分类排序
+    // 先按分类排序，同一分类内按创建时间排序
     return dayItems.sort((a, b) => {
       const categoryA = parseItemCategory(a.content).category;
       const categoryB = parseItemCategory(b.content).category;
-      return CATEGORY_CONFIG[categoryA].order - CATEGORY_CONFIG[categoryB].order;
+
+      // 先比较分类
+      const categoryOrder = CATEGORY_CONFIG[categoryA].order - CATEGORY_CONFIG[categoryB].order;
+      if (categoryOrder !== 0) {
+        return categoryOrder;
+      }
+
+      // 同一分类内，按创建时间排序（早的在前）
+      const timeA = new Date(a.created_at).getTime();
+      const timeB = new Date(b.created_at).getTime();
+      return timeA - timeB;
     });
   };
 
