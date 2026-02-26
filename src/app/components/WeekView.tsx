@@ -146,9 +146,7 @@ export default function WeekView({ onDateClick }: WeekViewProps) {
       }
 
       // 同一分类内，按创建时间排序（早的在前）
-      const timeA = new Date(a.created_at).getTime();
-      const timeB = new Date(b.created_at).getTime();
-      return timeA - timeB;
+      return a.createdAt - b.createdAt;
     });
   };
 
