@@ -279,7 +279,8 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
     return (
       <div
         key={item.id}
-        className={`${config.colorClass} ${config.borderColor} border-l-[3px] rounded-xl px-4 py-3 shadow-sm`}
+        className={`${config.colorClass} ${config.borderColor} border-l-[3px] rounded-xl px-4 py-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow`}
+        onClick={() => setEditingItem(item)}
       >
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
@@ -287,8 +288,11 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
             <span className={`text-[12px] font-medium ${config.labelColor}`}>{config.label}</span>
           </div>
           <button
-            onClick={() => handleDeleteItem(item.id)}
-            className="flex items-center gap-1 text-gray-300 hover:text-gray-400"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteItem(item.id);
+            }}
+            className="flex items-center gap-1 text-gray-300 hover:text-red-400"
           >
             <Trash2 className="w-3 h-3" />
             <span className="text-[12px]">删除</span>
