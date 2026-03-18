@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronUp, ChevronDown, Calendar, Sparkles, Plus, Home, Battery, Trash2, Eye, User, CalendarDays, ListChecks, LogOut, Lightbulb, Flame } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ChevronUp, ChevronDown, Calendar, Sparkles, Plus, Home, Battery, Trash2, Eye, User, CalendarDays, ListChecks, LogOut, Lightbulb, Flame, Search, X } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import DatePickerDialog from '../DatePickerDialog';
@@ -178,6 +178,14 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
       return isSameDay(itemDate, date);
     });
 
+    // 搜索筛选
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      dayItems = dayItems.filter(item =>
+        item.content.toLowerCase().includes(query)
+      );
+    }
+
     // 分类筛选
     if (activeCategory !== 'all') {
       dayItems = dayItems.filter(item => {
@@ -233,6 +241,9 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
       alert('保存失败，请重试');
     }
   };
+
+  // 搜索状态
+  const [searchQuery, setSearchQuery] = useState('');
 
   // 快速输入状态
   const [quickInputs, setQuickInputs] = useState({
@@ -322,7 +333,7 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
               <span className="text-white text-sm">✨</span>
             </div>
             <div>
-              <h1 className="text-white font-semibold text-sm">每日成长记录</h1>
+              <h1 className="text-white font-semibold text-sm">复盘，只为更快成长</h1>
               <p className="text-white/65 text-[10px]">记录成长，见证每一步</p>
             </div>
           </div>
@@ -396,7 +407,10 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
                 <ChevronUp className="w-3 h-3 text-gray-400" />
               </button>
               <button
-                onClick={() => setShowDatePicker(true)}
+                onClick={() => {
+                  setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+                  setShowDatePicker(true);
+                }}
                 className="h-[24px] px-2 rounded-full flex items-center gap-1"
                 style={{
                   background: 'linear-gradient(170.03deg, rgb(252, 231, 243) 0%, rgb(237, 233, 254) 100%)'
@@ -648,6 +662,26 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
             /* 首页内容 */
             <div className="flex-1 overflow-y-auto">
               <div className="p-5">
+              {/* 搜索框 */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜索事项..."
+                  className="w-full h-10 pl-10 pr-10 bg-gray-50 border border-gray-200 rounded-lg text-[13px] text-gray-700 placeholder-gray-400 outline-none focus:border-purple-300 focus:ring-2 focus:ring-purple-100 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
+
               {/* 快速输入区 */}
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-5 overflow-hidden">
                 {/* 基础 */}
@@ -828,6 +862,7 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
         onClose={() => setShowDatePicker(false)}
         onSelectDate={handleDateSelect}
         currentDate={currentWeekStart}
+        recordedDates={[...new Set(items.map(item => item.date))]}
       />
 
       {/* 添加事项弹窗 */}

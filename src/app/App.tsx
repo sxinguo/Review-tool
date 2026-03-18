@@ -17,7 +17,7 @@ type ReviewType = 'week' | 'month' | null;
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY || 'admin123';
 
 export default function App() {
-  const { isLoggedIn, isLoading, isGuest } = useAuth();
+  const { isLoggedIn, isLoading, isGuest, hasSelectedMode } = useAuth();
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     // Check URL for admin path or parameter
@@ -63,8 +63,8 @@ export default function App() {
     );
   }
 
-  // Show login screen if not logged in
-  if (!isLoggedIn) {
+  // Show login/welcome screen if not selected mode yet
+  if (!hasSelectedMode) {
     return <LoginScreen onLoginSuccess={() => {}} />;
   }
 

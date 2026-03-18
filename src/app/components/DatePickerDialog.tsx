@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -9,11 +9,19 @@ interface DatePickerDialogProps {
   onClose: () => void;
   onSelectDate: (date: Date) => void;
   currentDate: Date;
+  recordedDates?: string[]; // 已记录事项的日期列表，格式为 yyyy-MM-dd
 }
 
-export default function DatePickerDialog({ isOpen, onClose, onSelectDate, currentDate }: DatePickerDialogProps) {
+export default function DatePickerDialog({ isOpen, onClose, onSelectDate, currentDate, recordedDates = [] }: DatePickerDialogProps) {
   const [viewMonth, setViewMonth] = useState(() => new Date());
   const isMobile = useIsMobile();
+
+  // 当弹窗打开时，重置 viewMonth 为今天所在的月份
+  useEffect(() => {
+    if (isOpen) {
+      setViewMonth(new Date());
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -45,26 +53,31 @@ export default function DatePickerDialog({ isOpen, onClose, onSelectDate, curren
   // 渲染日期按钮
   const renderDateButton = (day: Date) => {
     const isCurrentMonth = isSameMonth(day, viewMonth);
-    const isSelected = isSameDay(day, currentDate);
     const isToday = isSameDay(day, new Date());
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const hasRecord = recordedDates.includes(dateStr);
 
     return (
-      <button
-        key={day.toISOString()}
-        onClick={() => handleDateClick(day)}
-        className={`
-          w-full aspect-square flex items-center justify-center rounded-lg text-sm transition-all
-          ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-900'}
-          ${isSelected ? 'text-white font-medium shadow-md' : ''}
-          ${isToday && !isSelected ? 'border-2 border-purple-400 font-medium text-purple-600' : ''}
-          ${!isSelected && isCurrentMonth ? 'hover:bg-purple-50 active:bg-purple-100' : ''}
-        `}
-        style={isSelected ? {
-          background: 'linear-gradient(135deg, #a855f7, #ec4899)'
-        } : {}}
-      >
-        {format(day, 'd')}
-      </button>
+      <div className="w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-all relative">
+        <button
+          onClick={() => handleDateClick(day)}
+          className={`
+            w-full h-full flex items-center justify-center rounded-lg text-sm transition-all
+            ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-900'}
+            ${isToday ? 'text-white font-medium shadow-md' : ''}
+            ${!isToday && isCurrentMonth ? 'hover:bg-purple-50 active:bg-purple-100' : ''}
+          `}
+          style={isToday ? {
+            background: 'linear-gradient(135deg, #a855f7, #ec4899)'
+          } : {}}
+        >
+          {format(day, 'd')}
+        </button>
+        {/* 有记录的日期显示小圆点（今天不显示） */}
+        {hasRecord && isCurrentMonth && !isToday && (
+          <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-purple-500" />
+        )}
+      </div>
     );
   };
 
@@ -191,28 +204,34 @@ export default function DatePickerDialog({ isOpen, onClose, onSelectDate, curren
           <div className="grid grid-cols-7 gap-1">
             {days.map((day) => {
               const isCurrentMonth = isSameMonth(day, viewMonth);
-              const isSelected = isSameDay(day, currentDate);
               const isToday = isSameDay(day, new Date());
+              const dateStr = format(day, 'yyyy-MM-dd');
+              const hasRecord = recordedDates.includes(dateStr);
 
               return (
-                <button
+                <div
                   key={day.toISOString()}
-                  onClick={() => handleDateClick(day)}
-                  className={`
-                    aspect-square flex items-center justify-center rounded-[10px] text-[13px] transition-all
-                    ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}
-                    ${isSelected ? 'text-white font-medium' : ''}
-                    ${isToday && !isSelected ? 'font-medium' : ''}
-                    ${!isSelected && isCurrentMonth ? 'hover:bg-gray-100' : ''}
-                  `}
-                  style={isSelected ? {
-                    background: 'linear-gradient(171.73deg, rgb(244, 114, 182) 0%, rgb(139, 92, 246) 100%)'
-                  } : isToday && !isSelected ? {
-                    color: 'rgb(139, 92, 246)'
-                  } : {}}
+                  className="aspect-square flex flex-col items-center justify-end pb-1 rounded-[10px] relative"
                 >
-                  {format(day, 'd')}
-                </button>
+                  <button
+                    onClick={() => handleDateClick(day)}
+                    className={`
+                      w-full h-[calc(100%-8px)] flex items-center justify-center rounded-[10px] text-[13px] transition-all
+                      ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}
+                      ${isToday ? 'text-white font-medium' : ''}
+                      ${!isToday && isCurrentMonth ? 'hover:bg-gray-100' : ''}
+                    `}
+                    style={isToday ? {
+                      background: 'linear-gradient(171.73deg, rgb(244, 114, 182) 0%, rgb(139, 92, 246) 100%)'
+                    } : {}}
+                  >
+                    {format(day, 'd')}
+                  </button>
+                  {/* 有记录的日期显示小圆点（今天不显示，因为今天已经是选中状态） */}
+                  {hasRecord && isCurrentMonth && !isToday && (
+                    <div className="absolute bottom-0.5 w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  )}
+                </div>
               );
             })}
           </div>

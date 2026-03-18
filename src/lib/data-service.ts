@@ -488,37 +488,15 @@ ${itemsText}
 
   // Get stats
   async getStats(): Promise<Stats> {
-    if (this.isGuest()) {
-      const items = getLocalItems();
-      const userData = getLocalUserData();
+    const items = this.isGuest() ? getLocalItems() : await this.getItems();
 
-      let totalDays = 0;
-      if (userData.firstRecordDate) {
-        const diffTime = Math.abs(Date.now() - userData.firstRecordDate);
-        totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      }
+    // 实际有记录的天数（去重）
+    const uniqueDates = new Set(items.map(item => item.date));
+    const totalDays = uniqueDates.size;
 
-      return {
-        totalDays,
-        totalItems: items.length,
-        firstRecordDate: userData.firstRecordDate,
-      };
-    }
-
-    // For logged in users, calculate from fetched items
-    const items = await this.getItems();
-
-    let firstRecordDate: number | null = null;
-    if (items.length > 0) {
-      const dates = items.map(item => new Date(item.date).getTime());
-      firstRecordDate = Math.min(...dates);
-    }
-
-    let totalDays = 0;
-    if (firstRecordDate) {
-      const diffTime = Math.abs(Date.now() - firstRecordDate);
-      totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    }
+    const firstRecordDate = items.length > 0
+      ? Math.min(...items.map(item => new Date(item.date).getTime()))
+      : null;
 
     return {
       totalDays,

@@ -8,9 +8,11 @@ interface AuthContextType {
   isGuest: boolean;
   isLoading: boolean;
   isLoggedIn: boolean;
+  hasSelectedMode: boolean; // 是否已经选择过模式（登录或体验）
   login: (username: string, password: string, inviteCode?: string) => Promise<{ success: boolean; error?: string; needInviteCode?: boolean }>;
   loginAsGuest: () => void;
   logout: () => Promise<void>;
+  setHasSelectedMode: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasSelectedMode, setHasSelectedMode] = useState(() => {
+    // 检查是否已经选择过模式
+    return localStorage.getItem('review-selected-mode') === 'true';
+  });
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -121,7 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(signInData.session);
         setUser(signInData.session.user);
         setIsGuest(false);
+        setHasSelectedMode(true);
         localStorage.removeItem(GUEST_MODE_KEY);
+        localStorage.setItem('review-selected-mode', 'true');
 
         return { success: true };
       }
@@ -201,7 +209,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAsGuest = () => {
     setIsGuest(true);
+    setHasSelectedMode(true);
     localStorage.setItem(GUEST_MODE_KEY, 'true');
+    localStorage.setItem('review-selected-mode', 'true');
   };
 
   const logout = async () => {
@@ -212,7 +222,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
       setIsGuest(false);
+      setHasSelectedMode(false);
       localStorage.removeItem(GUEST_MODE_KEY);
+      localStorage.removeItem('review-selected-mode');
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -224,9 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isGuest,
     isLoading,
     isLoggedIn: !!user || isGuest,
+    hasSelectedMode,
     login,
     loginAsGuest,
     logout,
+    setHasSelectedMode,
   };
 
   return (

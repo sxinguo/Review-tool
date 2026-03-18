@@ -239,7 +239,10 @@ export default function WeekView({ onDateClick, activeCategory = 'all' }: WeekVi
           </button>
 
           <button
-            onClick={() => setShowDatePicker(true)}
+            onClick={() => {
+              setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+              setShowDatePicker(true);
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-150 hover:to-pink-150 rounded-full active:from-purple-200 active:to-pink-200 transition-all"
           >
             <Calendar className="w-3.5 h-3.5 text-purple-600" />
@@ -361,6 +364,7 @@ export default function WeekView({ onDateClick, activeCategory = 'all' }: WeekVi
         onClose={() => setShowDatePicker(false)}
         onSelectDate={handleDateSelect}
         currentDate={currentWeekStart}
+        recordedDates={[...new Set(items.map(item => item.date))]}
       />
 
       {/* 新建事项弹窗 */}
