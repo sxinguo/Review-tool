@@ -477,8 +477,16 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
           {/* 智能复盘按钮 */}
           <div className="px-3 py-3">
             <button
-              onClick={() => setShowReviewDialog(true)}
-              className="w-full h-[35px] rounded-xl flex items-center justify-center gap-2 text-white text-[13px] font-medium"
+              onClick={() => {
+                if (isGuest) {
+                  alert('请先登录后再使用智能复盘功能');
+                  return;
+                }
+                setShowReviewDialog(true);
+              }}
+              className={`w-full h-[35px] rounded-xl flex items-center justify-center gap-2 text-white text-[13px] font-medium ${
+                isGuest ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               style={{
                 background: 'linear-gradient(169.04deg, rgb(244, 114, 182) 0%, rgb(139, 92, 246) 100%)'
               }}
