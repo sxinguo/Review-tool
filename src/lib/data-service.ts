@@ -23,9 +23,23 @@ export interface ReviewReport {
   content: string;
 }
 
+// Todo Item Types
+export interface TodoItem {
+  id: string;
+  title: string;        // 任务标题
+  platform: string;     // 平台
+  platformUrl?: string; // 平台链接
+  content: string;      // 任务内容
+  date: string;         // 日期
+  completed: boolean;    // 是否完成
+  createdAt: number;
+  user_id?: string;
+}
+
 // LocalStorage keys
 const ITEMS_KEY = 'review-items';
 const USER_KEY = 'review-user';
+const TODOS_KEY = 'review-todos';
 
 // Helper to get local storage items
 function getLocalItems(): ReviewItem[] {
@@ -48,6 +62,18 @@ function getLocalUserData(): { firstRecordDate: number | null } {
 // Helper to save user data
 function saveLocalUserData(data: { firstRecordDate: number | null }): void {
   localStorage.setItem(USER_KEY, JSON.stringify(data));
+}
+
+// Helper to get local todo items
+function getLocalTodos(): TodoItem[] {
+  const stored = localStorage.getItem(TODOS_KEY);
+  return stored ? JSON.parse(stored) : [];
+}
+
+// Helper to save local todo items
+function saveLocalTodos(todos: TodoItem[]): void {
+  localStorage.setItem(TODOS_KEY, JSON.stringify(todos));
+  window.dispatchEvent(new Event('storage-update'));
 }
 
 // DataService class
@@ -503,6 +529,189 @@ ${itemsText}
       totalItems: items.length,
       firstRecordDate,
     };
+  }
+
+  // ========== Todo Methods ==========
+
+  // Get todo items
+  async getTodos(): Promise<TodoItem[]> {
+    if (this.isGuest()) {
+      return getLocalTodos();
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      return getLocalTodos();
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('review_todos')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        return [];
+      }
+
+      return (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        platform: item.platform,
+        content: item.content,
+        date: item.date,
+        completed: item.completed,
+        createdAt: new Date(item.created_at).getTime(),
+        user_id: item.user_id,
+      }));
+    } catch (error) {
+      console.error('Error fetching todos:', error);
+      return [];
+    }
+  }
+
+  // Add todo item
+  async addTodo(title: string, platform: string, platformUrl: string, content: string, date: string): Promise<TodoItem> {
+    if (this.isGuest()) {
+      const newTodo: TodoItem = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        title: title.trim(),
+        platform,
+        platformUrl: platformUrl.trim(),
+        content: content.trim(),
+        date,
+        completed: false,
+        createdAt: Date.now(),
+      };
+
+      const todos = getLocalTodos();
+      todos.push(newTodo);
+      saveLocalTodos(todos);
+      return newTodo;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('review_todos')
+        .insert({
+          user_id: session.user.id,
+          title: title.trim(),
+          platform,
+          platformUrl: platformUrl.trim(),
+          content: content.trim(),
+          date,
+          completed: false,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw new Error('Failed to add todo');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+      return {
+        id: data.id,
+        title: data.title,
+        platform: data.platform,
+        platformUrl: data.platformUrl,
+        content: data.content,
+        date: data.date,
+        completed: data.completed,
+        createdAt: new Date(data.created_at).getTime(),
+        user_id: data.user_id,
+      };
+    } catch (error) {
+      console.error('Error adding todo:', error);
+      throw error;
+    }
+  }
+
+  // Toggle todo completed
+  async toggleTodo(id: string, completed: boolean): Promise<void> {
+    if (this.isGuest()) {
+      const todos = getLocalTodos();
+      const index = todos.findIndex(todo => todo.id === id);
+      if (index !== -1) {
+        todos[index].completed = completed;
+        saveLocalTodos(todos);
+      }
+      return;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('review_todos')
+        .update({ completed })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw new Error('Failed to update todo');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+    } catch (error) {
+      console.error('Error toggling todo:', error);
+      throw error;
+    }
+  }
+
+  // Delete todo
+  async deleteTodo(id: string): Promise<void> {
+    if (this.isGuest()) {
+      const todos = getLocalTodos();
+      const filtered = todos.filter(todo => todo.id !== id);
+      saveLocalTodos(filtered);
+      return;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('review_todos')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw new Error('Failed to delete todo');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+      throw error;
+    }
+  }
+
+  // Get todos for a specific date
+  async getTodosByDate(date: string): Promise<TodoItem[]> {
+    const todos = await this.getTodos();
+    return todos.filter(todo => todo.date === date);
+  }
+
+  // Get pending todos count for today
+  async getTodayPendingCount(): Promise<number> {
+    const today = new Date().toISOString().split('T')[0];
+    const todos = await this.getTodosByDate(today);
+    return todos.filter(todo => !todo.completed).length;
   }
 }
 

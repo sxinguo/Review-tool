@@ -68,6 +68,26 @@ CREATE TABLE IF NOT EXISTS public.review_reports (
 CREATE INDEX IF NOT EXISTS idx_review_reports_user_type ON public.review_reports(user_id, report_type);
 
 -- ============================================
+-- 4. 待办清单表
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.review_todos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,                           -- 任务标题
+  platform TEXT NOT NULL,                        -- 平台
+  platform_url TEXT,                             -- 平台链接
+  content TEXT,                                 -- 任务内容
+  date DATE NOT NULL,                           -- 日期
+  completed BOOLEAN DEFAULT FALSE,               -- 是否完成
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_review_todos_user_date ON public.review_todos(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_review_todos_user_id ON public.review_todos(user_id);
+
+-- ============================================
 -- 5. RLS (Row Level Security) 策略
 -- ============================================
 
@@ -76,6 +96,7 @@ ALTER TABLE public.invite_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_todos ENABLE ROW LEVEL SECURITY;
 
 -- invite_codes 表策略
 CREATE POLICY "Invite codes are readable by all" ON public.invite_codes
@@ -120,6 +141,19 @@ CREATE POLICY "Users can insert own reports" ON public.review_reports
 CREATE POLICY "Users can delete own reports" ON public.review_reports
   FOR DELETE USING (auth.uid() = user_id);
 
+-- review_todos 表策略
+CREATE POLICY "Users can view own todos" ON public.review_todos
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own todos" ON public.review_todos
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own todos" ON public.review_todos
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own todos" ON public.review_todos
+  FOR DELETE USING (auth.uid() = user_id);
+
 -- ============================================
 -- 6. 函数：自动更新 updated_at
 -- ============================================
@@ -135,6 +169,13 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS handle_review_items_updated_at ON public.review_items;
 CREATE TRIGGER handle_review_items_updated_at
   BEFORE UPDATE ON public.review_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+-- 为 review_todos 表创建触发器
+DROP TRIGGER IF EXISTS handle_review_todos_updated_at ON public.review_todos;
+CREATE TRIGGER handle_review_todos_updated_at
+  BEFORE UPDATE ON public.review_todos
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_updated_at();
 

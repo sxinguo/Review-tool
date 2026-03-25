@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronUp, ChevronDown, Calendar, Sparkles, Plus, Home, Battery, Trash2, Eye, User, CalendarDays, ListChecks, LogOut, Lightbulb, Flame, Search, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Calendar, Sparkles, Plus, Home, Battery, Trash2, Eye, User, CalendarDays, ListChecks, LogOut, Lightbulb, Flame, Search, X, ListTodo } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import DatePickerDialog from '../DatePickerDialog';
 import DesktopAddItemDialog from '../DesktopAddItemDialog';
 import ReviewDialog from '../ReviewDialog';
+import TodoList from '../TodoList';
 import { dataService, ReviewItem, Stats } from '../../../lib/data-service';
 import { useAuth } from '../../../contexts/AuthContext';
 
-type PageView = 'home' | 'profile';
+type PageView = 'home' | 'profile' | 'todos';
 
 interface DesktopLayoutProps {
   onEnterAdmin?: () => void;
@@ -95,6 +96,7 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
   const [editingItem, setEditingItem] = useState<ReviewItem | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [time, setTime] = useState(new Date());
+  const [pendingTodoCount, setPendingTodoCount] = useState(0);
 
   // 实时时钟
   useEffect(() => {
@@ -443,6 +445,20 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
             </button>
             <button
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[13px] ${
+                currentPage === 'todos' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-500'
+              }`}
+              onClick={() => setCurrentPage('todos')}
+            >
+              <ListTodo className="w-4 h-4" />
+              <span>待办清单</span>
+              {pendingTodoCount > 0 && (
+                <span className="ml-auto text-xs px-1.5 py-0.5 bg-orange-100 text-orange-500 rounded">
+                  {pendingTodoCount}
+                </span>
+              )}
+            </button>
+            <button
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[13px] ${
                 currentPage === 'profile' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-500'
               }`}
               onClick={() => setCurrentPage('profile')}
@@ -518,7 +534,6 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
         {/* 主内容区 */}
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
           {currentPage === 'profile' ? (
-            /* 个人中心页面 */
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* 用户头部 */}
               <div
@@ -666,6 +681,9 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
                 </div>
               </div>
             </div>
+          ) : currentPage === 'todos' ? (
+            /* 待办清单页面 */
+            <TodoList onStatsUpdate={setPendingTodoCount} />
           ) : (
             /* 首页内容 */
             <div className="flex-1 overflow-y-auto">
