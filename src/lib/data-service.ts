@@ -548,7 +548,7 @@ ${itemsText}
       const { data, error } = await supabase
         .from('review_todos')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Supabase query error:', error);
@@ -559,6 +559,7 @@ ${itemsText}
         id: item.id,
         title: item.title,
         platform: item.platform,
+        platformUrl: item.platform_url,
         content: item.content,
         date: item.date,
         completed: item.completed,
@@ -603,7 +604,7 @@ ${itemsText}
           user_id: session.user.id,
           title: title.trim(),
           platform,
-          platformUrl: platformUrl.trim(),
+          platform_url: platformUrl.trim(),
           content: content.trim(),
           date,
           completed: false,
@@ -621,7 +622,7 @@ ${itemsText}
         id: data.id,
         title: data.title,
         platform: data.platform,
-        platformUrl: data.platformUrl,
+        platformUrl: data.platform_url,
         content: data.content,
         date: data.date,
         completed: data.completed,
