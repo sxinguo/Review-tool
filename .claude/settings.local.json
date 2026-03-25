@@ -4,7 +4,11 @@
       "Bash(npm install:*)",
       "mcp__supabase__apply_migration",
       "mcp__figma__get_design_context",
-      "Bash(rg --files)"
+      "Bash(rg --files)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/NeverSight/learn-skills.dev/main/data/skills-md/flyflypeng/xiaohongshu-skill/xiaohongshu-skill/SKILL.md\")",
+      "Bash(powershell -Command \"[System.IO.File]::WriteAllText\\('D:/vibe_coding/Review-tool/xiaohongshu-skill.md', \\(Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/NeverSight/learn-skills.dev/main/data/skills-md/flyflypeng/xiaohongshu-skill/xiaohongshu-skill/SKILL.md' -UseBasicParsing\\).Content, [System.Text.Encoding]::UTF8\\)\")",
+      "Bash(powershell -Command \"Invoke-RestMethod -Uri 'https://api.github.com/repos/NeverSight/learn-skills.dev/contents/data/skills-md/flyflypeng/xiaohongshu-skill' | ConvertTo-Json -Depth 5\")",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

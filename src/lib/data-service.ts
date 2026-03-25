@@ -702,6 +702,66 @@ ${itemsText}
     }
   }
 
+  // Update todo item
+  async updateTodo(id: string, title: string, platform: string, platformUrl: string, content: string): Promise<TodoItem> {
+    if (this.isGuest()) {
+      const todos = getLocalTodos();
+      const index = todos.findIndex(todo => todo.id === id);
+      if (index === -1) {
+        throw new Error('Todo not found');
+      }
+      todos[index] = {
+        ...todos[index],
+        title: title.trim(),
+        platform,
+        platformUrl: platformUrl.trim(),
+        content: content.trim(),
+      };
+      saveLocalTodos(todos);
+      return todos[index];
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('review_todos')
+        .update({
+          title: title.trim(),
+          platform,
+          platform_url: platformUrl.trim(),
+          content: content.trim(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw new Error('Failed to update todo');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+      return {
+        id: data.id,
+        title: data.title,
+        platform: data.platform,
+        platformUrl: data.platform_url,
+        content: data.content,
+        date: data.date,
+        completed: data.completed,
+        createdAt: new Date(data.created_at).getTime(),
+        user_id: data.user_id,
+      };
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      throw error;
+    }
+  }
+
   // Get todos for a specific date
   async getTodosByDate(date: string): Promise<TodoItem[]> {
     const todos = await this.getTodos();

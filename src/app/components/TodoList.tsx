@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Check, Circle, Plus, X, ChevronDown } from 'lucide-react';
+import { Check, Circle, Plus, X, ChevronDown, Pencil } from 'lucide-react';
 import { dataService, TodoItem } from '../../lib/data-service';
 
 interface TodoListProps {
@@ -25,6 +25,7 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     platform: '',
@@ -91,6 +92,63 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
       console.error('Error adding todo:', error);
       alert('添加失败，请重试');
     }
+  };
+
+  // 编辑待办事项
+  const handleEditTodo = (todo: TodoItem) => {
+    setEditingTodo(todo);
+    setFormData({
+      title: todo.title,
+      platform: todo.platform,
+      platformUrl: todo.platformUrl || '',
+      content: todo.content,
+      date: todo.date,
+    });
+  };
+
+  // 更新待办事项
+  const handleUpdateTodo = async () => {
+    if (!editingTodo) return;
+    if (!formData.title.trim() || !formData.platform) {
+      alert('请填写任务名称和选择平台');
+      return;
+    }
+
+    try {
+      await dataService.updateTodo(
+        editingTodo.id,
+        formData.title.trim(),
+        formData.platform,
+        formData.platformUrl.trim(),
+        formData.content.trim()
+      );
+
+      // 重置表单
+      setEditingTodo(null);
+      setFormData({
+        title: '',
+        platform: '',
+        platformUrl: '',
+        content: '',
+        date: today,
+      });
+      loadTodos();
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      alert('更新失败，请重试');
+    }
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingTodo(null);
+    setFormData({
+      title: '',
+      platform: '',
+      platformUrl: '',
+      content: '',
+      date: today,
+    });
   };
 
   // 切换完成状态
@@ -164,8 +222,8 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
 
       {/* 内容区域 */}
       <div className="flex-1 overflow-y-auto px-8 py-5">
-        {/* 添加任务表单 */}
-        {showAddForm && (
+        {/* 添加/编辑任务表单 */}
+        {(showAddForm || editingTodo) && (
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* 任务名称 */}
@@ -184,9 +242,9 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">平台</label>
                 <button
                   onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
-                  className="w-full h-8 px-3 bg-white border border-gray-200 rounded-lg text-sm text-left text-gray-400 flex items-center justify-between"
+                  className="w-full h-8 px-3 bg-white border border-gray-200 rounded-lg text-sm text-left flex items-center justify-between"
                 >
-                  <span className={formData.platform ? 'text-gray-700' : ''}>
+                  <span className={formData.platform ? 'text-gray-700' : 'text-gray-400'}>
                     {formData.platform || '选择平台'}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -241,13 +299,13 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
             {/* 操作按钮 */}
             <div className="flex items-center gap-2">
               <button
-                onClick={handleAddTodo}
+                onClick={editingTodo ? handleUpdateTodo : handleAddTodo}
                 className="h-8 px-4 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
               >
-                添加
+                {editingTodo ? '保存' : '添加'}
               </button>
               <button
-                onClick={() => {
+                onClick={editingTodo ? handleCancelEdit : () => {
                   setShowAddForm(false);
                   setFormData({
                     title: '',
@@ -261,7 +319,7 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
               >
                 取消
               </button>
-              <span className="text-xs text-gray-400 ml-2">Ctrl+Enter 快速添加</span>
+              {!editingTodo && <span className="text-xs text-gray-400 ml-2">Ctrl+Enter 快速添加</span>}
             </div>
           </div>
         )}
@@ -357,6 +415,13 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
                     className="shrink-0 p-1 text-gray-300 hover:text-red-400 transition-colors"
                   >
                     <X className="w-4 h-4" />
+                  </button>
+                  {/* 编辑按钮 */}
+                  <button
+                    onClick={() => handleEditTodo(todo)}
+                    className="shrink-0 p-1 text-gray-300 hover:text-purple-500 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
                   </button>
                 </div>
               ))}
