@@ -26,6 +26,7 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     platform: '',
@@ -72,6 +73,7 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await dataService.addTodo(
         formData.title.trim(),
@@ -94,6 +96,8 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
     } catch (error) {
       console.error('Error adding todo:', error);
       alert('添加失败，请重试');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -117,6 +121,7 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await dataService.updateTodo(
         editingTodo.id,
@@ -139,6 +144,8 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
     } catch (error) {
       console.error('Error updating todo:', error);
       alert('更新失败，请重试');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -303,9 +310,13 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={editingTodo ? handleUpdateTodo : handleAddTodo}
-                className="h-8 px-4 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+                disabled={isSubmitting}
+                className="h-8 px-4 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                {editingTodo ? '保存' : '添加'}
+                {isSubmitting && (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
+                {isSubmitting ? '提交中...' : (editingTodo ? '保存' : '添加')}
               </button>
               <button
                 onClick={editingTodo ? handleCancelEdit : () => {
@@ -318,11 +329,12 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
                     date: today,
                   });
                 }}
-                className="h-8 px-4 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                disabled={isSubmitting}
+                className="h-8 px-4 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 取消
               </button>
-              {!editingTodo && <span className="text-xs text-gray-400 ml-2">Ctrl+Enter 快速添加</span>}
+              {!editingTodo && !isSubmitting && <span className="text-xs text-gray-400 ml-2">Ctrl+Enter 快速添加</span>}
             </div>
           </div>
         )}
