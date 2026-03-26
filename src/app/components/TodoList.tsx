@@ -41,7 +41,10 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
   const loadTodos = useCallback(async () => {
     setIsLoading(true);
     try {
-      const fetchedTodos = await dataService.getTodosByDate(today);
+      // 重置所有已完成待办的状态（每天自动重置）
+      await dataService.resetCompletedTodos();
+      // 获取所有待办（不按日期过滤，跨日期保留）
+      const fetchedTodos = await dataService.getTodos();
       setTodos(fetchedTodos);
 
       // 更新父组件的待办数量
@@ -52,7 +55,7 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [today, onStatsUpdate]);
+  }, [onStatsUpdate]);
 
   useEffect(() => {
     loadTodos();

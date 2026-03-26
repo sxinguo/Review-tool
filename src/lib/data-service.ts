@@ -762,16 +762,66 @@ ${itemsText}
     }
   }
 
-  // Get todos for a specific date
+  // Get todos for a specific date (deprecated: use getTodos with filter)
   async getTodosByDate(date: string): Promise<TodoItem[]> {
     const todos = await this.getTodos();
     return todos.filter(todo => todo.date === date);
   }
 
-  // Get pending todos count for today
-  async getTodayPendingCount(): Promise<number> {
+  // Reset completed status for past dated todos (called on app load)
+  // 只有跨日期时才重置已完成状态，一天内多次进入不会重置
+  async resetCompletedTodos(): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
-    const todos = await this.getTodosByDate(today);
+    const lastResetDate = localStorage.getItem('review-todos-last-reset');
+
+    // 同一天内不重复重置
+    if (lastResetDate === today) {
+      return;
+    }
+
+    if (this.isGuest()) {
+      const todos = getLocalTodos();
+      let hasChanges = false;
+      for (const todo of todos) {
+        if (todo.completed) {
+          todo.completed = false;
+          hasChanges = true;
+        }
+      }
+      if (hasChanges) {
+        saveLocalTodos(todos);
+      }
+      localStorage.setItem('review-todos-last-reset', today);
+      return;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      return;
+    }
+
+    try {
+      // Reset all completed todos to not completed
+      const { error } = await supabase
+        .from('review_todos')
+        .update({ completed: false })
+        .eq('completed', true)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Supabase reset error:', error);
+      } else {
+        localStorage.setItem('review-todos-last-reset', today);
+        window.dispatchEvent(new Event('storage-update'));
+      }
+    } catch (error) {
+      console.error('Error resetting todos:', error);
+    }
+  }
+
+  // Get pending todos count (all uncompleted todos, since completed reset daily)
+  async getTodayPendingCount(): Promise<number> {
+    const todos = await this.getTodos();
     return todos.filter(todo => !todo.completed).length;
   }
 }
