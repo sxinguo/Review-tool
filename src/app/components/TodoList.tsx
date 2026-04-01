@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Check, Circle, Plus, X, ChevronDown, Pencil } from 'lucide-react';
 import { dataService, TodoItem } from '../../lib/data-service';
+import { toast } from 'sonner';
 
 interface TodoListProps {
   onStatsUpdate?: (pendingCount: number) => void;
@@ -163,12 +164,15 @@ export default function TodoList({ onStatsUpdate }: TodoListProps) {
 
   // 切换完成状态
   const handleToggleComplete = async (todo: TodoItem) => {
+    const toastId = toast.loading('更新中...');
     try {
       await dataService.toggleTodo(todo.id, !todo.completed);
       loadTodos();
+      toast.dismiss(toastId);
     } catch (error) {
       console.error('Error toggling todo:', error);
-      alert('更新失败，请重试');
+      toast.dismiss(toastId);
+      toast.error('更新失败，请重试');
     }
   };
 

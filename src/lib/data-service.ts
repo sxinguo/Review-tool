@@ -36,10 +36,21 @@ export interface TodoItem {
   user_id?: string;
 }
 
+// Note Item Types
+export interface NoteItem {
+  id: string;
+  content: string;      // 内容
+  color: string;        // 颜色
+  isPinned: boolean;     // 是否置顶
+  createdAt: number;
+  user_id?: string;
+}
+
 // LocalStorage keys
 const ITEMS_KEY = 'review-items';
 const USER_KEY = 'review-user';
 const TODOS_KEY = 'review-todos';
+const NOTES_KEY = 'review-notes';
 
 // Helper to get local storage items
 function getLocalItems(): ReviewItem[] {
@@ -73,6 +84,18 @@ function getLocalTodos(): TodoItem[] {
 // Helper to save local todo items
 function saveLocalTodos(todos: TodoItem[]): void {
   localStorage.setItem(TODOS_KEY, JSON.stringify(todos));
+  window.dispatchEvent(new Event('storage-update'));
+}
+
+// Helper to get local note items
+function getLocalNotes(): NoteItem[] {
+  const stored = localStorage.getItem(NOTES_KEY);
+  return stored ? JSON.parse(stored) : [];
+}
+
+// Helper to save local note items
+function saveLocalNotes(notes: NoteItem[]): void {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
   window.dispatchEvent(new Event('storage-update'));
 }
 
@@ -823,6 +846,235 @@ ${itemsText}
   async getTodayPendingCount(): Promise<number> {
     const todos = await this.getTodos();
     return todos.filter(todo => !todo.completed).length;
+  }
+
+  // ========== Notes Methods ==========
+
+  // Get note items
+  async getNotes(): Promise<NoteItem[]> {
+    if (this.isGuest()) {
+      return getLocalNotes();
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      return getLocalNotes();
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        return [];
+      }
+
+      return (data || []).map(item => ({
+        id: item.id,
+        content: item.content,
+        color: item.color,
+        isPinned: item.is_pinned,
+        createdAt: new Date(item.created_at).getTime(),
+        user_id: item.user_id,
+      }));
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+      return [];
+    }
+  }
+
+  // Add note item
+  async addNote(content: string, color: string): Promise<NoteItem> {
+    if (this.isGuest()) {
+      const newNote: NoteItem = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        content: content.trim(),
+        color,
+        isPinned: false,
+        createdAt: Date.now(),
+      };
+
+      const notes = getLocalNotes();
+      notes.unshift(newNote);
+      saveLocalNotes(notes);
+      return newNote;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          user_id: session.user.id,
+          content: content.trim(),
+          color,
+          is_pinned: false,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw new Error('Failed to add note');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+      return {
+        id: data.id,
+        content: data.content,
+        color: data.color,
+        isPinned: data.is_pinned,
+        createdAt: new Date(data.created_at).getTime(),
+        user_id: data.user_id,
+      };
+    } catch (error) {
+      console.error('Error adding note:', error);
+      throw error;
+    }
+  }
+
+  // Update note item
+  async updateNote(id: string, content: string, color: string): Promise<NoteItem> {
+    if (this.isGuest()) {
+      const notes = getLocalNotes();
+      const index = notes.findIndex(note => note.id === id);
+      if (index === -1) {
+        throw new Error('Note not found');
+      }
+      notes[index] = {
+        ...notes[index],
+        content: content.trim(),
+        color,
+      };
+      saveLocalNotes(notes);
+      return notes[index];
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .update({
+          content: content.trim(),
+          color,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw new Error('Failed to update note');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+      return {
+        id: data.id,
+        content: data.content,
+        color: data.color,
+        isPinned: data.is_pinned,
+        createdAt: new Date(data.created_at).getTime(),
+        user_id: data.user_id,
+      };
+    } catch (error) {
+      console.error('Error updating note:', error);
+      throw error;
+    }
+  }
+
+  // Toggle pin note (single pin mode - only one note can be pinned at a time)
+  async togglePinNote(id: string, isPinned: boolean): Promise<void> {
+    if (this.isGuest()) {
+      const notes = getLocalNotes();
+      if (isPinned) {
+        // Unpin all other notes first
+        notes.forEach(note => {
+          if (note.id !== id) {
+            note.isPinned = false;
+          }
+        });
+      }
+      const index = notes.findIndex(note => note.id === id);
+      if (index !== -1) {
+        notes[index].isPinned = isPinned;
+        saveLocalNotes(notes);
+      }
+      return;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      if (isPinned) {
+        // Unpin all other notes first
+        await supabase
+          .from('notes')
+          .update({ is_pinned: false })
+          .neq('id', id);
+      }
+
+      const { error } = await supabase
+        .from('notes')
+        .update({ is_pinned: isPinned })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw new Error('Failed to toggle pin');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      throw error;
+    }
+  }
+
+  // Delete note
+  async deleteNote(id: string): Promise<void> {
+    if (this.isGuest()) {
+      const notes = getLocalNotes();
+      const filtered = notes.filter(note => note.id !== id);
+      saveLocalNotes(filtered);
+      return;
+    }
+
+    const session = await this.getSupabaseSession();
+    if (!session || !supabase) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw new Error('Failed to delete note');
+      }
+
+      window.dispatchEvent(new Event('storage-update'));
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      throw error;
+    }
   }
 }
 

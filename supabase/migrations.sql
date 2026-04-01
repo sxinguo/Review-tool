@@ -88,7 +88,24 @@ CREATE INDEX IF NOT EXISTS idx_review_todos_user_date ON public.review_todos(use
 CREATE INDEX IF NOT EXISTS idx_review_todos_user_id ON public.review_todos(user_id);
 
 -- ============================================
--- 5. RLS (Row Level Security) 策略
+-- 5. 记事本表
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  color TEXT DEFAULT '#1e2939',                -- 颜色标记
+  is_pinned BOOLEAN DEFAULT FALSE,             -- 是否置顶
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_notes_user_id ON public.notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_user_pinned ON public.notes(user_id, is_pinned);
+
+-- ============================================
+-- 6. RLS (Row Level Security) 策略
 -- ============================================
 
 -- 启用 RLS
@@ -97,6 +114,7 @@ ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_todos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 
 -- invite_codes 表策略
 CREATE POLICY "Invite codes are readable by all" ON public.invite_codes
@@ -154,6 +172,19 @@ CREATE POLICY "Users can update own todos" ON public.review_todos
 CREATE POLICY "Users can delete own todos" ON public.review_todos
   FOR DELETE USING (auth.uid() = user_id);
 
+-- notes 表策略
+CREATE POLICY "Users can view own notes" ON public.notes
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own notes" ON public.notes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own notes" ON public.notes
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own notes" ON public.notes
+  FOR DELETE USING (auth.uid() = user_id);
+
 -- ============================================
 -- 6. 函数：自动更新 updated_at
 -- ============================================
@@ -176,6 +207,13 @@ CREATE TRIGGER handle_review_items_updated_at
 DROP TRIGGER IF EXISTS handle_review_todos_updated_at ON public.review_todos;
 CREATE TRIGGER handle_review_todos_updated_at
   BEFORE UPDATE ON public.review_todos
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+-- 为 notes 表创建触发器
+DROP TRIGGER IF EXISTS handle_notes_updated_at ON public.notes;
+CREATE TRIGGER handle_notes_updated_at
+  BEFORE UPDATE ON public.notes
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_updated_at();
 

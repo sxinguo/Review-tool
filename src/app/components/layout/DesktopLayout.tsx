@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronUp, ChevronDown, Calendar, Sparkles, Plus, Home, Battery, Trash2, Eye, User, CalendarDays, ListChecks, LogOut, Lightbulb, Flame, Search, X, ListTodo } from 'lucide-react';
+import { ChevronUp, ChevronDown, Calendar, Sparkles, Plus, Home, Battery, Trash2, Eye, User, CalendarDays, ListChecks, LogOut, Lightbulb, Flame, Search, X, ListTodo, FileText } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import DatePickerDialog from '../DatePickerDialog';
 import DesktopAddItemDialog from '../DesktopAddItemDialog';
 import ReviewDialog from '../ReviewDialog';
 import TodoList from '../TodoList';
+import Notebook from '../Notebook';
 import { dataService, ReviewItem, Stats } from '../../../lib/data-service';
 import { useAuth } from '../../../contexts/AuthContext';
 
-type PageView = 'home' | 'profile' | 'todos';
+type PageView = 'home' | 'profile' | 'todos' | 'notebook';
 
 interface DesktopLayoutProps {
   onEnterAdmin?: () => void;
@@ -459,6 +460,15 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
             </button>
             <button
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[13px] ${
+                currentPage === 'notebook' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-500'
+              }`}
+              onClick={() => setCurrentPage('notebook')}
+            >
+              <FileText className="w-4 h-4" />
+              <span>记事本</span>
+            </button>
+            <button
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[13px] ${
                 currentPage === 'profile' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-500'
               }`}
               onClick={() => setCurrentPage('profile')}
@@ -684,6 +694,9 @@ export default function DesktopLayout({ onEnterAdmin }: DesktopLayoutProps) {
           ) : currentPage === 'todos' ? (
             /* 待办清单页面 */
             <TodoList onStatsUpdate={setPendingTodoCount} />
+          ) : currentPage === 'notebook' ? (
+            /* 记事本页面 */
+            <Notebook />
           ) : (
             /* 首页内容 */
             <div className="flex-1 overflow-y-auto">
